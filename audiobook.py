@@ -1426,7 +1426,7 @@ class AudioBook:
                 self.save_config()
                 
                 # Update UI
-                self.hg_bp_status.configure(text=f"[OK] ({x},{y})", fg=self.colors['status_on'])
+                self.hg_bp_status.configure(text=f"[OK] ({x},{y})", text_color=self.colors['status_on'])
                 status.config(text=f"Gravado: ({x},{y})")
                 
                 listener.stop()
@@ -1492,10 +1492,10 @@ class AudioBook:
             bp_pos = hg.get('bp_pos')
             if bp_pos:
                 self.hg_bp_status.configure(text=f"[OK] ({bp_pos['x']},{bp_pos['y']})", 
-                                         fg=self.colors['status_on'])
+                                         text_color=self.colors['status_on'])
                 self.hypergrab_bp_pos = bp_pos
             else:
-                self.hg_bp_status.configure(text="[Nao gravado]", fg=self.colors['text_subdued'])
+                self.hg_bp_status.configure(text="[Nao gravado]", text_color=self.colors['text_subdued'])
         
         # Don't auto-enable on load
         if hasattr(self, 'hypergrab_enabled'):
