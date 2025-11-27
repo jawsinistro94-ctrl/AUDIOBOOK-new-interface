@@ -1199,8 +1199,25 @@ class AudioBook:
         keyboard_ctrl = KeyboardController()
         cycle_count = 0
         
+        def should_stop():
+            """Check if runemaker should stop - called frequently for fast response"""
+            return not self.runemaker_running
+        
+        def wait_with_check(seconds):
+            """Sleep but check for stop signal every 50ms for fast response to Alt+F12"""
+            elapsed = 0
+            step = 0.05  # Check every 50ms
+            while elapsed < seconds:
+                if should_stop():
+                    return False  # Signal to stop
+                time.sleep(step)
+                elapsed += step
+            return True  # Continue
+        
         def press_key(key_name):
             """Press a key using pynput"""
+            if should_stop():
+                return False
             try:
                 key_name_lower = key_name.lower()
                 if key_name_lower.startswith('f') and key_name_lower[1:].isdigit():
@@ -1263,45 +1280,79 @@ class AudioBook:
             return
         
         while self.runemaker_running:
+            # Check for stop signal at start of each cycle
+            if should_stop():
+                print("[RUNEMAKER] Sinal de parada detectado!")
+                break
+            
             cycle_count += 1
             delay = self.rm_delay.get() / 1000.0
             spell_key = self.rm_spell_hotkey.get()
             num_potions = self.rm_potions_count.get()
             num_casts = self.rm_casts_count.get()
             
-            # Check if paused
+            # Check if paused (with fast stop check)
             while self.runemaker_paused and self.runemaker_running:
-                time.sleep(0.1)
+                if should_stop():
+                    break
+                time.sleep(0.05)  # Check every 50ms
             
-            if not self.runemaker_running:
-                return
+            if should_stop():
+                break
             
             # Update cycle display
-            self.rm_cycle_label.configure(text=f"Ciclo {cycle_count}: {num_potions} pot + {num_casts} cast")
+            try:
+                self.rm_cycle_label.configure(text=f"Ciclo {cycle_count}: {num_potions} pot + {num_casts} cast")
+            except:
+                pass  # UI might be destroyed during shutdown
             
             # Execute configured number of potions (mouse clicks)
             for p in range(num_potions):
-                if not self.runemaker_running:
-                    return
+                if should_stop():
+                    break
                 while self.runemaker_paused and self.runemaker_running:
-                    time.sleep(0.1)
-                self.rm_cycle_label.configure(text=f"Ciclo {cycle_count}: Potion {p+1}/{num_potions}")
+                    if should_stop():
+                        break
+                    time.sleep(0.05)
+                if should_stop():
+                    break
+                try:
+                    self.rm_cycle_label.configure(text=f"Ciclo {cycle_count}: Potion {p+1}/{num_potions}")
+                except:
+                    pass
                 use_potion()
-                time.sleep(delay)
+                if not wait_with_check(delay):
+                    break
+            
+            if should_stop():
+                break
             
             # Execute configured number of casts (keypresses)
             for s in range(num_casts):
-                if not self.runemaker_running:
-                    return
+                if should_stop():
+                    break
                 while self.runemaker_paused and self.runemaker_running:
-                    time.sleep(0.1)
-                self.rm_cycle_label.configure(text=f"Ciclo {cycle_count}: Cast {s+1}/{num_casts}")
+                    if should_stop():
+                        break
+                    time.sleep(0.05)
+                if should_stop():
+                    break
+                try:
+                    self.rm_cycle_label.configure(text=f"Ciclo {cycle_count}: Cast {s+1}/{num_casts}")
+                except:
+                    pass
                 press_key(spell_key)
-                time.sleep(delay)
+                if not wait_with_check(delay):
+                    break
             
-            print(f"[RUNEMAKER] Ciclo {cycle_count} completo! ({num_potions} pot + {num_casts} cast)")
+            if not should_stop():
+                print(f"[RUNEMAKER] Ciclo {cycle_count} completo! ({num_potions} pot + {num_casts} cast)")
         
-        self.rm_cycle_label.configure(text="")
+        print("[RUNEMAKER] Thread finalizada!")
+        try:
+            self.rm_cycle_label.configure(text="")
+        except:
+            pass
     
     def save_runemaker_config(self):
         """Save runemaker settings to config"""
@@ -1887,13 +1938,60 @@ class AudioBook:
             self.status_label.configure(text="OFF", text_color=self.colors['status_off'])
     
     def pause_all(self):
-        """Global pause triggered by Alt+F12 - forces system to OFF"""
-        if self.active:  # Only pause if currently active
-            self.active = False
-            self.global_toggle.deselect()  # Turn off the switch
-            self.status_label.configure(text="OFF", text_color=self.colors['status_off'])
-            # Show visual feedback
-            self.root.after(0, lambda: messagebox.showinfo("Sistema Pausado", "Todas as automações foram pausadas via Alt+F12"))
+        """Global pause triggered by Alt+F12 - forces ALL automations to stop IMMEDIATELY"""
+        print("[ALT+F12] PAUSA GLOBAL ATIVADA!")
+        
+        # 1. STOP GLOBAL TOGGLE
+        self.active = False
+        self.global_toggle.deselect()
+        self.status_label.configure(text="OFF", text_color=self.colors['status_off'])
+        
+        # 2. FORCE STOP RUNEMAKER (critical - runs in separate thread!)
+        if hasattr(self, 'runemaker_running') and self.runemaker_running:
+            self.runemaker_running = False
+            self.runemaker_paused = False
+            if hasattr(self, 'runemaker_enabled'):
+                self.runemaker_enabled.set(False)
+            if hasattr(self, 'rm_enabled_btn'):
+                self.update_checkbox_icon(self.rm_enabled_btn, self.runemaker_enabled)
+            if hasattr(self, 'rm_status_label'):
+                self.rm_status_label.configure(text="[PARADO]", text_color=self.colors['status_off'])
+            if hasattr(self, 'rm_cycle_label'):
+                self.rm_cycle_label.configure(text="")
+            print("[ALT+F12] Runemaker FORÇADO a parar!")
+        
+        # 3. STOP ALL BEST SELLERS (Auto SD, EXPLO, UH, Mana)
+        if hasattr(self, 'auto_sd_enabled'):
+            self.auto_sd_enabled.set(False)
+            if hasattr(self, 'sd_enabled_btn'):
+                self.update_checkbox_icon(self.sd_enabled_btn, self.auto_sd_enabled)
+        if hasattr(self, 'auto_explo_enabled'):
+            self.auto_explo_enabled.set(False)
+            if hasattr(self, 'explo_enabled_btn'):
+                self.update_checkbox_icon(self.explo_enabled_btn, self.auto_explo_enabled)
+        if hasattr(self, 'auto_uh_enabled'):
+            self.auto_uh_enabled.set(False)
+            if hasattr(self, 'uh_enabled_btn'):
+                self.update_checkbox_icon(self.uh_enabled_btn, self.auto_uh_enabled)
+        if hasattr(self, 'auto_mana_enabled'):
+            self.auto_mana_enabled.set(False)
+            if hasattr(self, 'mana_enabled_btn'):
+                self.update_checkbox_icon(self.mana_enabled_btn, self.auto_mana_enabled)
+        
+        # 4. STOP HYPER GRAB
+        if hasattr(self, 'hypergrab_enabled'):
+            self.hypergrab_enabled.set(False)
+            if hasattr(self, 'hg_enabled_btn'):
+                self.update_checkbox_icon(self.hg_enabled_btn, self.hypergrab_enabled)
+            if hasattr(self, 'hg_status_label'):
+                self.hg_status_label.configure(text="[OFF]", text_color=self.colors['status_off'])
+        
+        # 5. Save config to persist the OFF state
+        self.save_config()
+        
+        print("[ALT+F12] TODAS as automações foram PARADAS!")
+        # Show visual feedback (non-blocking)
+        self.root.after(100, lambda: messagebox.showinfo("PAUSA GLOBAL", "Alt+F12: Todas as automações foram PARADAS!"))
     
     def refresh_tree(self):
         # Clear tree
