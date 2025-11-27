@@ -625,7 +625,7 @@ class AudioBook:
         self.rm_spell_btn = ctk.CTkButton(rm_row2, text=self.rm_spell_hotkey.get(), width=50, height=24,
                                           corner_radius=6, fg_color=self.colors['selection'],
                                           hover_color=self.colors['button_hover'],
-                                          fg="#FFFFFF", font=ctk.CTkFont(family="Consolas", size=10, weight="bold"),
+                                          text_color="#FFFFFF", font=ctk.CTkFont(family="Consolas", size=10, weight="bold"),
                                           command=lambda: self.change_runemaker_hotkey('spell'))
         self.rm_spell_btn.pack(side=tk.LEFT, padx=4)
         
@@ -709,7 +709,7 @@ class AudioBook:
         self.rm_pause_btn = ctk.CTkButton(rm_row6, text=self.rm_pause_hotkey.get(), width=50, height=24,
                                           corner_radius=6, fg_color=self.colors['button_default'],
                                           hover_color=self.colors['button_hover'],
-                                          fg="#FFFFFF", font=ctk.CTkFont(family="Consolas", size=10, weight="bold"),
+                                          text_color="#FFFFFF", font=ctk.CTkFont(family="Consolas", size=10, weight="bold"),
                                           command=self.change_runemaker_pause_hotkey)
         self.rm_pause_btn.pack(side=tk.LEFT, padx=4)
         
@@ -787,7 +787,7 @@ class AudioBook:
         self.hg_hotkey_btn = ctk.CTkButton(hg_row1, text=self.hypergrab_hotkey.get(), width=50, height=24,
                                            corner_radius=6, fg_color=self.colors['selection'],
                                            hover_color=self.colors['button_hover'],
-                                           fg="#FFFFFF", font=ctk.CTkFont(family="Consolas", size=10, weight="bold"),
+                                           text_color="#FFFFFF", font=ctk.CTkFont(family="Consolas", size=10, weight="bold"),
                                            command=self.change_hypergrab_hotkey)
         self.hg_hotkey_btn.pack(side=tk.LEFT, padx=4)
         
@@ -1038,18 +1038,18 @@ class AudioBook:
         dialog = self.create_ember_dialog("Gravar Posicoes - Potion", 450, 300)
         
         tk.Label(dialog, text="Gravar Posicoes da Potion", font=('Georgia', 12, 'bold'),
-                bg=self.colors['bg_primary'], text_color=self.colors['text_header']).pack(pady=10)
+                bg=self.colors['bg_primary'], fg=self.colors['text_header']).pack(pady=10)
         
         instruction = """1. Clique em "Iniciar Gravacao"
 2. Clique na POTION (sera clique direito)
 3. Clique no seu PERSONAGEM (sera clique esquerdo)"""
         
         tk.Label(dialog, text=instruction, font=('Consolas', 9), justify=tk.LEFT,
-                bg=self.colors['bg_primary'], text_color=self.colors['text_body']).pack(pady=10)
+                bg=self.colors['bg_primary'], fg=self.colors['text_body']).pack(pady=10)
         
         status_var = tk.StringVar(value="Pronto para gravar...")
         tk.Label(dialog, textvariable=status_var, font=('Consolas', 10, 'bold'),
-                bg=self.colors['bg_primary'], text_color=self.colors['status_on']).pack(pady=10)
+                bg=self.colors['bg_primary'], fg=self.colors['status_on']).pack(pady=10)
         
         clicks_recorded = []
         
@@ -1068,7 +1068,7 @@ class AudioBook:
             dialog.after(100, lambda: mouse.Listener(on_click=on_click).start())
         
         tk.Button(dialog, text="Iniciar Gravacao", command=start_recording,
-                 bg=self.colors['button_default'], text_color=self.colors['text_body'],
+                 bg=self.colors['button_default'], fg=self.colors['text_body'],
                  font=('Georgia', 10, 'bold'), padx=15, pady=5).pack(pady=10)
         
         def save_positions():
@@ -1088,10 +1088,10 @@ class AudioBook:
             self.ember_info("Sucesso", "Posicoes da potion gravadas!")
         
         tk.Button(dialog, text="Salvar", command=save_positions,
-                 bg=self.colors['selection'], text_color=self.colors['text_header'],
+                 bg=self.colors['selection'], fg=self.colors['text_header'],
                  font=('Georgia', 10, 'bold'), padx=20, pady=5).pack(pady=5)
         tk.Button(dialog, text="Cancelar", command=dialog.destroy,
-                 bg=self.colors['button_destructive'], text_color=self.colors['text_body'],
+                 bg=self.colors['button_destructive'], fg=self.colors['text_body'],
                  font=('Georgia', 9), padx=15, pady=3).pack()
     
     def change_runemaker_hotkey(self, hotkey_type):
@@ -1099,11 +1099,11 @@ class AudioBook:
         dialog = self.create_ember_dialog("Alterar Hotkey Spell", 400, 200)
         
         tk.Label(dialog, text="Pressione a nova hotkey...", font=('Georgia', 12, 'bold'),
-                bg=self.colors['bg_primary'], text_color=self.colors['text_header']).pack(pady=20)
+                bg=self.colors['bg_primary'], fg=self.colors['text_header']).pack(pady=20)
         
         hotkey_var = tk.StringVar(value="Aguardando...")
         tk.Label(dialog, textvariable=hotkey_var, font=('Consolas', 14, 'bold'),
-                bg=self.colors['bg_primary'], text_color=self.colors['status_on']).pack(pady=10)
+                bg=self.colors['bg_primary'], fg=self.colors['status_on']).pack(pady=10)
         
         pressed_keys = {'key': None}
         
@@ -1130,10 +1130,10 @@ class AudioBook:
                 dialog.destroy()
         
         tk.Button(dialog, text="Salvar", command=save_hotkey,
-                 bg=self.colors['button_default'], text_color=self.colors['text_body'],
+                 bg=self.colors['button_default'], fg=self.colors['text_body'],
                  font=('Georgia', 10, 'bold'), padx=20, pady=5).pack(pady=15)
         tk.Button(dialog, text="Cancelar", command=lambda: [listener.stop(), dialog.destroy()],
-                 bg=self.colors['button_destructive'], text_color=self.colors['text_body'],
+                 bg=self.colors['button_destructive'], fg=self.colors['text_body'],
                  font=('Georgia', 10), padx=15, pady=3).pack()
     
     def change_runemaker_pause_hotkey(self):
@@ -1141,11 +1141,11 @@ class AudioBook:
         dialog = self.create_ember_dialog("Alterar Hotkey Pausar", 400, 200)
         
         tk.Label(dialog, text="Pressione a nova hotkey...", font=('Georgia', 12, 'bold'),
-                bg=self.colors['bg_primary'], text_color=self.colors['text_header']).pack(pady=20)
+                bg=self.colors['bg_primary'], fg=self.colors['text_header']).pack(pady=20)
         
         hotkey_var = tk.StringVar(value="Aguardando...")
         tk.Label(dialog, textvariable=hotkey_var, font=('Consolas', 14, 'bold'),
-                bg=self.colors['bg_primary'], text_color=self.colors['status_on']).pack(pady=10)
+                bg=self.colors['bg_primary'], fg=self.colors['status_on']).pack(pady=10)
         
         pressed_keys = {'key': None}
         
@@ -1172,10 +1172,10 @@ class AudioBook:
                 dialog.destroy()
         
         tk.Button(dialog, text="Salvar", command=save_hotkey,
-                 bg=self.colors['button_default'], text_color=self.colors['text_body'],
+                 bg=self.colors['button_default'], fg=self.colors['text_body'],
                  font=('Georgia', 10, 'bold'), padx=20, pady=5).pack(pady=15)
         tk.Button(dialog, text="Cancelar", command=lambda: [listener.stop(), dialog.destroy()],
-                 bg=self.colors['button_destructive'], text_color=self.colors['text_body'],
+                 bg=self.colors['button_destructive'], fg=self.colors['text_body'],
                  font=('Georgia', 10), padx=15, pady=3).pack()
     
     def toggle_runemaker_pause(self):
@@ -1186,8 +1186,8 @@ class AudioBook:
         self.runemaker_paused = not self.runemaker_paused
         
         if self.runemaker_paused:
-            self.rm_status_label.configure(text="[PAUSADO]", fg='#FFA500')
-            self.rm_pause_status.configure(text="[PAUSADO]", fg='#FFA500')
+            self.rm_status_label.configure(text="[PAUSADO]", text_color='#FFA500')
+            self.rm_pause_status.configure(text="[PAUSADO]", text_color='#FFA500')
             print("[RUNEMAKER] Pausado!")
         else:
             self.rm_status_label.configure(text="[RODANDO]", text_color=self.colors['status_on'])
@@ -1259,7 +1259,7 @@ class AudioBook:
             print("[RUNEMAKER] ERRO: Grave as posicoes da potion primeiro!")
             self.runemaker_enabled.set(False)
             self.runemaker_running = False
-            self.rm_status_label.configure(text="[ERRO: Grave potion]", fg='#FF6B35')
+            self.rm_status_label.configure(text="[ERRO: Grave potion]", text_color='#FF6B35')
             return
         
         while self.runemaker_running:
@@ -1382,13 +1382,13 @@ class AudioBook:
         dialog = self.create_ember_dialog("Hyper Grab Hotkey", 400, 200)
         
         tk.Label(dialog, text="Hyper Grab Hotkey", font=('Georgia', 14, 'bold'),
-                bg=self.colors['bg_primary'], text_color=self.colors['text_header']).pack(pady=15)
+                bg=self.colors['bg_primary'], fg=self.colors['text_header']).pack(pady=15)
         
         tk.Label(dialog, text="Pressione qualquer tecla...", font=('Arial', 11),
-                bg=self.colors['bg_primary'], text_color=self.colors['text_body']).pack(pady=10)
+                bg=self.colors['bg_primary'], fg=self.colors['text_body']).pack(pady=10)
         
         key_label = tk.Label(dialog, text=self.hypergrab_hotkey.get(), font=('Consolas', 16, 'bold'),
-                bg=self.colors['bg_inset'], text_color=self.colors['status_on'], padx=20, pady=10)
+                bg=self.colors['bg_inset'], fg=self.colors['status_on'], padx=20, pady=10)
         key_label.pack(pady=10)
         
         def on_key(event):
@@ -1406,13 +1406,13 @@ class AudioBook:
         dialog = self.create_ember_dialog("Gravar Slot BP", 450, 200)
         
         tk.Label(dialog, text="Gravar Posicao do Slot da BP", font=('Georgia', 12, 'bold'),
-                bg=self.colors['bg_primary'], text_color=self.colors['text_header']).pack(pady=10)
+                bg=self.colors['bg_primary'], fg=self.colors['text_header']).pack(pady=10)
         
         tk.Label(dialog, text="Clique no slot SUPERIOR DIREITO da sua backpack", 
-                font=('Arial', 10), bg=self.colors['bg_primary'], text_color=self.colors['text_body']).pack(pady=5)
+                font=('Arial', 10), bg=self.colors['bg_primary'], fg=self.colors['text_body']).pack(pady=5)
         
         status = tk.Label(dialog, text="Aguardando clique...", font=('Consolas', 11, 'bold'),
-                bg=self.colors['bg_primary'], text_color=self.colors['status_on'])
+                bg=self.colors['bg_primary'], fg=self.colors['status_on'])
         status.pack(pady=10)
         
         def on_click(x, y, button, pressed):
@@ -1426,7 +1426,7 @@ class AudioBook:
                 self.save_config()
                 
                 # Update UI
-                self.hg_bp_status.configure(text=f"[OK] ({x},{y})", text_color=self.colors['status_on'])
+                self.hg_bp_status.configure(text=f"[OK] ({x},{y})", fg=self.colors['status_on'])
                 status.config(text=f"Gravado: ({x},{y})")
                 
                 listener.stop()
@@ -1492,10 +1492,10 @@ class AudioBook:
             bp_pos = hg.get('bp_pos')
             if bp_pos:
                 self.hg_bp_status.configure(text=f"[OK] ({bp_pos['x']},{bp_pos['y']})", 
-                                         text_color=self.colors['status_on'])
+                                         fg=self.colors['status_on'])
                 self.hypergrab_bp_pos = bp_pos
             else:
-                self.hg_bp_status.configure(text="[Nao gravado]", text_color=self.colors['text_subdued'])
+                self.hg_bp_status.configure(text="[Nao gravado]", fg=self.colors['text_subdued'])
         
         # Don't auto-enable on load
         if hasattr(self, 'hypergrab_enabled'):
@@ -1518,14 +1518,14 @@ class AudioBook:
         dialog = self.create_ember_dialog(title, 400, 200)
         
         tk.Label(dialog, text=title, font=('Georgia', 14, 'bold'),
-                bg=self.colors['bg_primary'], text_color=self.colors['text_header']).pack(pady=15)
+                bg=self.colors['bg_primary'], fg=self.colors['text_header']).pack(pady=15)
         
         tk.Label(dialog, text=message, font=('Arial', 10), wraplength=350,
-                bg=self.colors['bg_primary'], text_color=self.colors['text_body'], justify=tk.CENTER).pack(pady=10)
+                bg=self.colors['bg_primary'], fg=self.colors['text_body'], justify=tk.CENTER).pack(pady=10)
         
         btn = tk.Button(dialog, text="✓ OK", width=10,
                        command=dialog.destroy,
-                       bg=self.colors['button_default'], text_color=self.colors['text_body'],
+                       bg=self.colors['button_default'], fg=self.colors['text_body'],
                        font=('Arial', 10, 'bold'), relief=tk.RAISED, borderwidth=2,
                        activebackground=self.colors['button_hover'])
         btn.pack(pady=15)
@@ -1542,11 +1542,11 @@ class AudioBook:
                 bg=self.colors['bg_primary'], fg='#FF6B35').pack(pady=15)
         
         tk.Label(dialog, text=message, font=('Arial', 10), wraplength=350,
-                bg=self.colors['bg_primary'], text_color=self.colors['text_body'], justify=tk.CENTER).pack(pady=10)
+                bg=self.colors['bg_primary'], fg=self.colors['text_body'], justify=tk.CENTER).pack(pady=10)
         
         btn = tk.Button(dialog, text="OK", width=10,
                        command=dialog.destroy,
-                       bg=self.colors['border_dark'], text_color=self.colors['text_body'],
+                       bg=self.colors['border_dark'], fg=self.colors['text_body'],
                        font=('Arial', 10, 'bold'), relief=tk.RAISED, borderwidth=2,
                        activebackground=self.colors['button_hover'])
         btn.pack(pady=15)
@@ -1599,17 +1599,17 @@ class AudioBook:
         
         # Title with ember colors
         tk.Label(dialog, text=title, font=('Georgia', 14, 'bold'),
-                bg=self.colors['bg_primary'], text_color=self.colors['text_header']).pack(pady=15)
+                bg=self.colors['bg_primary'], fg=self.colors['text_header']).pack(pady=15)
         
         # Instructions
         instruction_text = f"Pressione a nova hotkey\n(Pode usar Ctrl, Alt ou Shift)"
         tk.Label(dialog, text=instruction_text, font=('Arial', 10),
-                bg=self.colors['bg_primary'], text_color=self.colors['text_body'], justify=tk.CENTER).pack(pady=10)
+                bg=self.colors['bg_primary'], fg=self.colors['text_body'], justify=tk.CENTER).pack(pady=10)
         
         # Status display
         hotkey_var = tk.StringVar(value="Aguardando...")
         status_label = tk.Label(dialog, textvariable=hotkey_var, font=('Consolas', 12, 'bold'),
-                               bg=self.colors['bg_secondary'], text_color=self.colors['focus_glow'],
+                               bg=self.colors['bg_secondary'], fg=self.colors['focus_glow'],
                                relief=tk.GROOVE, borderwidth=2, padx=15, pady=10)
         status_label.pack(pady=10, padx=20, fill=tk.X)
         
@@ -1762,7 +1762,7 @@ class AudioBook:
         # Title with ember colors
         tk.Label(dialog, text=f"{title} - Gravação de Posições", 
                 font=('Georgia', 16, 'bold'), bg=self.colors['bg_primary'], 
-                text_color=self.colors['text_header']).pack(pady=15)
+                fg=self.colors['text_header']).pack(pady=15)
         
         if is_sd:
             instructions = "1. Clique na posição da RUNA SD\n2. Sistema irá detectar targets automaticamente!"
@@ -1779,11 +1779,11 @@ class AudioBook:
         
         # Instructions with ember colors
         tk.Label(dialog, text=instructions, font=('Arial', 11), bg=self.colors['bg_primary'],
-                text_color=self.colors['text_body'], justify=tk.LEFT).pack(pady=10)
+                fg=self.colors['text_body'], justify=tk.LEFT).pack(pady=10)
         
         status_var = tk.StringVar(value="Clique 'Iniciar' para começar a gravar...")
         status_label = tk.Label(dialog, textvariable=status_var, font=('Consolas', 10, 'bold'), 
-                               bg=self.colors['bg_secondary'], text_color=self.colors['focus_glow'],
+                               bg=self.colors['bg_secondary'], fg=self.colors['focus_glow'],
                                wraplength=500, relief=tk.GROOVE, borderwidth=2, padx=10, pady=10)
         status_label.pack(pady=15, padx=15, fill=tk.X)
         
@@ -1859,7 +1859,7 @@ class AudioBook:
         btn_frame.pack(pady=20)
         
         tk.Button(btn_frame, text="📍 Iniciar Gravação", command=start_recording,
-                 bg=self.colors['button_default'], text_color=self.colors['text_body'],
+                 bg=self.colors['button_default'], fg=self.colors['text_body'],
                  font=('Arial', 10, 'bold'), relief=tk.RAISED, borderwidth=2,
                  activebackground=self.colors['button_hover'], padx=10, pady=5).pack(side=tk.LEFT, padx=5)
         
@@ -1870,7 +1870,7 @@ class AudioBook:
         save_btn.pack(side=tk.LEFT, padx=5)
         
         tk.Button(btn_frame, text="Cancelar", command=dialog.destroy,
-                 bg=self.colors['button_destructive'], text_color=self.colors['text_body'],
+                 bg=self.colors['button_destructive'], fg=self.colors['text_body'],
                  font=('Arial', 10, 'bold'), relief=tk.RAISED, borderwidth=2,
                  activebackground=self.colors['border'], padx=10, pady=5).pack(side=tk.LEFT, padx=5)
         
@@ -2203,7 +2203,7 @@ class AudioBook:
         instruction_dialog = self.create_ember_dialog("Calibração Auto-Target", 580, 420)
         
         tk.Label(instruction_dialog, text="🎯 Calibração Automática - 2 Cliques", font=('Georgia', 14, 'bold'),
-                bg=self.colors['bg_primary'], text_color=self.colors['text_header']).pack(pady=15)
+                bg=self.colors['bg_primary'], fg=self.colors['text_header']).pack(pady=15)
         
         instructions = """APENAS 2 CLIQUES! O sistema gera as 3 iluminações automaticamente:
 
@@ -2223,7 +2223,7 @@ IMPORTANTE:
 Pressione 'Iniciar' quando estiver pronto!"""
         
         tk.Label(instruction_dialog, text=instructions, justify=tk.LEFT, wraplength=540,
-                bg=self.colors['bg_primary'], text_color=self.colors['text_body'], font=('Arial', 9)).pack(pady=10, padx=20)
+                bg=self.colors['bg_primary'], fg=self.colors['text_body'], font=('Arial', 9)).pack(pady=10, padx=20)
         
         # Start calibration function
         def start_calibration():
@@ -2480,7 +2480,7 @@ Pressione 'Iniciar' quando estiver pronto!"""
         
         # Cancel button
         tk.Button(instruction_dialog, text="Cancelar", command=instruction_dialog.destroy,
-                 bg=self.colors['button_destructive'], text_color=self.colors['text_body'],
+                 bg=self.colors['button_destructive'], fg=self.colors['text_body'],
                  font=('Arial', 10), padx=20, pady=5).pack(pady=5)
     
     def open_auto_uh_config(self):
@@ -4183,7 +4183,7 @@ Pressione 'Iniciar' quando estiver pronto!"""
         dialog.grab_set()
         
         tk.Label(dialog, text="Nome do novo perfil:", bg=self.colors['bg_secondary'],
-                text_color=self.colors['text_header'], font=('Georgia', 11)).pack(pady=10)
+                fg=self.colors['text_header'], font=('Georgia', 11)).pack(pady=10)
         
         name_entry = tk.Entry(dialog, font=('Georgia', 11), width=30)
         name_entry.pack(pady=5)
@@ -4220,7 +4220,7 @@ Pressione 'Iniciar' quando estiver pronto!"""
             dialog.destroy()
         
         tk.Button(dialog, text="Criar", command=create, bg=self.colors['button_default'],
-                 text_color=self.colors['text_header'], font=('Georgia', 10, 'bold'),
+                 fg=self.colors['text_header'], font=('Georgia', 10, 'bold'),
                  padx=20, pady=5).pack(pady=10)
     
     def rename_profile(self):
@@ -4240,7 +4240,7 @@ Pressione 'Iniciar' quando estiver pronto!"""
         dialog.grab_set()
         
         tk.Label(dialog, text=f"Novo nome para '{old_name}':", bg=self.colors['bg_secondary'],
-                text_color=self.colors['text_header'], font=('Georgia', 11)).pack(pady=10)
+                fg=self.colors['text_header'], font=('Georgia', 11)).pack(pady=10)
         
         name_entry = tk.Entry(dialog, font=('Georgia', 11), width=30)
         name_entry.insert(0, old_name)
@@ -4274,7 +4274,7 @@ Pressione 'Iniciar' quando estiver pronto!"""
             dialog.destroy()
         
         tk.Button(dialog, text="Renomear", command=rename, bg=self.colors['button_default'],
-                 text_color=self.colors['text_header'], font=('Georgia', 10, 'bold'),
+                 fg=self.colors['text_header'], font=('Georgia', 10, 'bold'),
                  padx=20, pady=5).pack(pady=10)
     
     def delete_profile(self):
