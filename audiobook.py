@@ -904,44 +904,24 @@ class AudioBook:
                                              command=self.change_drag_hotkey)
         self.drag_hotkey_btn.pack(side=tk.LEFT, padx=4)
         
-        # Row 2: Start position (X)
+        # Row 2: Destination position (onde vai soltar)
         drag_row2 = ctk.CTkFrame(drag_config_inner, fg_color="transparent")
         drag_row2.pack(fill=tk.X, pady=4)
         
-        ctk.CTkLabel(drag_row2, text="Pos. X:", font=ctk.CTkFont(family="Georgia", size=10, weight="bold"),
+        ctk.CTkLabel(drag_row2, text="Destino:", font=ctk.CTkFont(family="Georgia", size=10, weight="bold"),
                     text_color=self.colors['text_body'], width=80).pack(side=tk.LEFT)
         
         ctk.CTkButton(drag_row2, text="📍 Gravar", width=80, height=24, corner_radius=6,
                      fg_color=self.colors['button_default'], hover_color=self.colors['button_hover'],
                      text_color=self.colors['text_body'], font=ctk.CTkFont(size=10),
-                     command=lambda: self.record_drag_position('start')).pack(side=tk.LEFT, padx=4)
+                     command=self.record_drag_destination).pack(side=tk.LEFT, padx=4)
         
-        self.drag_start_status = ctk.CTkLabel(drag_row2, text="[Nao gravado]", width=120,
+        self.drag_dest_status = ctk.CTkLabel(drag_row2, text="[Nao gravado]", width=120,
                                               font=ctk.CTkFont(family="Consolas", size=9, weight="bold"),
                                               text_color=self.colors['text_subdued'])
-        self.drag_start_status.pack(side=tk.LEFT, padx=8)
+        self.drag_dest_status.pack(side=tk.LEFT, padx=8)
         
-        ctk.CTkLabel(drag_row2, text="(origem)", font=ctk.CTkFont(family="Consolas", size=8),
-                    text_color=self.colors['text_subdued']).pack(side=tk.LEFT)
-        
-        # Row 3: End position (Y)
-        drag_row3 = ctk.CTkFrame(drag_config_inner, fg_color="transparent")
-        drag_row3.pack(fill=tk.X, pady=4)
-        
-        ctk.CTkLabel(drag_row3, text="Pos. Y:", font=ctk.CTkFont(family="Georgia", size=10, weight="bold"),
-                    text_color=self.colors['text_body'], width=80).pack(side=tk.LEFT)
-        
-        ctk.CTkButton(drag_row3, text="📍 Gravar", width=80, height=24, corner_radius=6,
-                     fg_color=self.colors['button_default'], hover_color=self.colors['button_hover'],
-                     text_color=self.colors['text_body'], font=ctk.CTkFont(size=10),
-                     command=lambda: self.record_drag_position('end')).pack(side=tk.LEFT, padx=4)
-        
-        self.drag_end_status = ctk.CTkLabel(drag_row3, text="[Nao gravado]", width=120,
-                                            font=ctk.CTkFont(family="Consolas", size=9, weight="bold"),
-                                            text_color=self.colors['text_subdued'])
-        self.drag_end_status.pack(side=tk.LEFT, padx=8)
-        
-        ctk.CTkLabel(drag_row3, text="(destino)", font=ctk.CTkFont(family="Consolas", size=8),
+        ctk.CTkLabel(drag_row2, text="(onde solta)", font=ctk.CTkFont(family="Consolas", size=8),
                     text_color=self.colors['text_subdued']).pack(side=tk.LEFT)
         
         # Drag info box
@@ -949,7 +929,7 @@ class AudioBook:
                                       corner_radius=8, border_width=1, border_color=self.colors['border'])
         drag_info_card.pack(fill=tk.X, pady=3, padx=2)
         
-        ctk.CTkLabel(drag_info_card, text="Hotkey → Clica em X, arrasta INSTANTANEAMENTE pra Y, solta",
+        ctk.CTkLabel(drag_info_card, text="Hotkey → De onde o mouse esta, arrasta ate o destino gravado",
                     font=ctk.CTkFont(family="Consolas", size=9),
                     text_color=self.colors['text_body']).pack(pady=6)
         
@@ -1718,17 +1698,19 @@ class AudioBook:
         dialog.bind('<Key>', on_key)
         dialog.focus_force()
     
-    def record_drag_position(self, pos_type):
-        """Record start (X) or end (Y) position for Drag Hotkey"""
-        title = "Gravar Pos. X (Origem)" if pos_type == 'start' else "Gravar Pos. Y (Destino)"
-        dialog = self.create_ember_dialog(title, 450, 200)
+    def record_drag_destination(self):
+        """Record destination position for Drag Hotkey
         
-        tk.Label(dialog, text=title, font=('Georgia', 12, 'bold'),
+        The origin is always where the mouse is when hotkey is pressed.
+        This only records where items will be DRAGGED TO.
+        """
+        dialog = self.create_ember_dialog("Gravar Destino", 450, 200)
+        
+        tk.Label(dialog, text="Gravar Posicao de DESTINO", font=('Georgia', 12, 'bold'),
                 bg=self.colors['bg_primary'], fg=self.colors['text_header']).pack(pady=10)
         
-        instruction = "Clique na posicao de ORIGEM (onde vai clicar)" if pos_type == 'start' else "Clique na posicao de DESTINO (onde vai arrastar)"
-        tk.Label(dialog, text=instruction, font=('Arial', 10),
-                bg=self.colors['bg_primary'], fg=self.colors['text_body']).pack(pady=5)
+        tk.Label(dialog, text="Clique onde os itens serao SOLTOS (destino do arraste)", 
+                font=('Arial', 10), bg=self.colors['bg_primary'], fg=self.colors['text_body']).pack(pady=5)
         
         status = tk.Label(dialog, text="Aguardando clique...", font=('Consolas', 11, 'bold'),
                 bg=self.colors['bg_primary'], fg=self.colors['status_on'])
@@ -1742,16 +1724,11 @@ class AudioBook:
                 if 'drag_hotkey' not in self.config:
                     self.config['drag_hotkey'] = {}
                 
-                # Thread-safe UI updates via root.after
-                if pos_type == 'start':
-                    self.drag_start_pos = pos
-                    self.config['drag_hotkey']['start_pos'] = pos
-                    self.ui_configure(self.drag_start_status, text=f"[OK] ({x},{y})", text_color=self.colors['status_on'])
-                else:
-                    self.drag_end_pos = pos
-                    self.config['drag_hotkey']['end_pos'] = pos
-                    self.ui_configure(self.drag_end_status, text=f"[OK] ({x},{y})", text_color=self.colors['status_on'])
+                self.drag_dest_pos = pos
+                self.config['drag_hotkey']['dest_pos'] = pos
                 
+                # Thread-safe UI updates via root.after
+                self.ui_configure(self.drag_dest_status, text=f"[OK] ({x},{y})", text_color=self.colors['status_on'])
                 self.ui_safe(self.save_config)
                 self.ui_safe(lambda: status.config(text=f"Gravado: ({x},{y})"))
                 
@@ -1763,39 +1740,38 @@ class AudioBook:
         listener.start()
     
     def execute_drag_hotkey(self):
-        """Execute instant drag from position X to position Y and return mouse to original"""
+        """Execute instant drag from CURRENT mouse position to saved destination
+        
+        How it works:
+        - Origin = wherever the mouse is when hotkey is pressed
+        - Destination = the saved position (gravada pelo usuario)
+        - Action: click down at current pos, drag to destination, release
+        """
         if not self.drag_enabled.get():
             return
         
-        # Get positions from config
+        # Get destination position from config
         drag_config = self.config.get('drag_hotkey', {})
-        start_pos = drag_config.get('start_pos')
-        end_pos = drag_config.get('end_pos')
+        dest_pos = drag_config.get('dest_pos')
         
-        if not start_pos:
-            print("[DRAG_HOTKEY] ERRO: Grave a posicao X (origem) primeiro!")
-            return
-        if not end_pos:
-            print("[DRAG_HOTKEY] ERRO: Grave a posicao Y (destino) primeiro!")
+        if not dest_pos:
+            print("[DRAG_HOTKEY] ERRO: Grave a posicao de DESTINO primeiro!")
             return
         
         try:
-            # SAVE original mouse position BEFORE doing anything
-            original_x, original_y = pyautogui.position()
+            # Current mouse position = ORIGIN (where user is hovering)
+            origin_x, origin_y = pyautogui.position()
+            dest_x, dest_y = dest_pos['x'], dest_pos['y']
             
-            start_x, start_y = start_pos['x'], start_pos['y']
-            end_x, end_y = end_pos['x'], end_pos['y']
-            
-            # INSTANT: Move to start -> click down -> move to end -> click up
-            pyautogui.moveTo(start_x, start_y, duration=0)  # INSTANT move to start
+            # INSTANT DRAG: click down at current pos -> drag to destination -> release
             pyautogui.mouseDown(button='left')
-            pyautogui.moveTo(end_x, end_y, duration=0)  # INSTANT drag to end
+            pyautogui.moveTo(dest_x, dest_y, duration=0)  # INSTANT drag
             pyautogui.mouseUp(button='left')
             
             # RETURN MOUSE to original position (instant)
-            pyautogui.moveTo(original_x, original_y, duration=0)
+            pyautogui.moveTo(origin_x, origin_y, duration=0)
             
-            print(f"[DRAG_HOTKEY] Arrastado de ({start_x},{start_y}) para ({end_x},{end_y}) - mouse retornou para ({original_x},{original_y})")
+            print(f"[DRAG_HOTKEY] Arrastado de ({origin_x},{origin_y}) para ({dest_x},{dest_y}) - mouse retornou")
             
         except Exception as e:
             print(f"[DRAG_HOTKEY] Erro: {e}")
@@ -1805,15 +1781,13 @@ class AudioBook:
         if 'drag_hotkey' not in self.config:
             self.config['drag_hotkey'] = {}
         
-        # Preserve existing positions
-        existing_start = self.config.get('drag_hotkey', {}).get('start_pos')
-        existing_end = self.config.get('drag_hotkey', {}).get('end_pos')
+        # Preserve existing destination position
+        existing_dest = self.config.get('drag_hotkey', {}).get('dest_pos')
         
         self.config['drag_hotkey'] = {
             'enabled': self.drag_enabled.get(),
             'hotkey': self.drag_hotkey.get(),
-            'start_pos': existing_start,
-            'end_pos': existing_end
+            'dest_pos': existing_dest
         }
         
         self.save_config()
@@ -1827,24 +1801,15 @@ class AudioBook:
             if hasattr(self, 'drag_hotkey_btn'):
                 self.drag_hotkey_btn.configure(text=drag.get('hotkey', 'F8'))
         
-        # Update position status labels
-        if hasattr(self, 'drag_start_status'):
-            start_pos = drag.get('start_pos')
-            if start_pos:
-                self.drag_start_status.configure(text=f"[OK] ({start_pos['x']},{start_pos['y']})", 
-                                                 text_color=self.colors['status_on'])
-                self.drag_start_pos = start_pos
+        # Update destination position status label
+        if hasattr(self, 'drag_dest_status'):
+            dest_pos = drag.get('dest_pos')
+            if dest_pos:
+                self.drag_dest_status.configure(text=f"[OK] ({dest_pos['x']},{dest_pos['y']})", 
+                                                text_color=self.colors['status_on'])
+                self.drag_dest_pos = dest_pos
             else:
-                self.drag_start_status.configure(text="[Nao gravado]", text_color=self.colors['text_subdued'])
-        
-        if hasattr(self, 'drag_end_status'):
-            end_pos = drag.get('end_pos')
-            if end_pos:
-                self.drag_end_status.configure(text=f"[OK] ({end_pos['x']},{end_pos['y']})", 
-                                               text_color=self.colors['status_on'])
-                self.drag_end_pos = end_pos
-            else:
-                self.drag_end_status.configure(text="[Nao gravado]", text_color=self.colors['text_subdued'])
+                self.drag_dest_status.configure(text="[Nao gravado]", text_color=self.colors['text_subdued'])
         
         # Don't auto-enable on load
         if hasattr(self, 'drag_enabled'):
@@ -3553,30 +3518,31 @@ Pressione 'Iniciar' quando estiver pronto!"""
         self.listener_heartbeat = time.time()
         
         def on_press(key):
-            # Update heartbeat on every keypress
-            self.listener_heartbeat = time.time()
-            
-            # === GLOBAL PAUSE HOTKEY: Alt+F12 ===
-            # This works even when automations are running
+            # WRAP EVERYTHING in try/except to prevent crashes
             try:
-                is_alt = 'alt' in self.currently_pressed
-                is_f12 = False
-                if hasattr(key, 'name') and key.name == 'f12':
-                    is_f12 = True
-                elif hasattr(key, 'vk') and key.vk == 123:  # F12 virtual key code
-                    is_f12 = True
+                # Update heartbeat on every keypress
+                self.listener_heartbeat = time.time()
                 
-                if is_alt and is_f12:
-                    # Pause all automations via Alt+F12
-                    self.root.after(0, self.pause_all)
-                    return  # Don't process any other hotkeys
-            except:
-                pass
-            
-            if not self.active:
-                return
-            
-            try:
+                # === GLOBAL PAUSE HOTKEY: Alt+F12 ===
+                # This works even when automations are running
+                try:
+                    is_alt = 'alt' in self.currently_pressed
+                    is_f12 = False
+                    if hasattr(key, 'name') and key.name == 'f12':
+                        is_f12 = True
+                    elif hasattr(key, 'vk') and key.vk == 123:  # F12 virtual key code
+                        is_f12 = True
+                    
+                    if is_alt and is_f12:
+                        # Pause all automations via Alt+F12 (thread-safe)
+                        self.ui_safe(self.pause_all)
+                        return  # Don't process any other hotkeys
+                except:
+                    pass
+                
+                if not self.active:
+                    return
+                
                 # Ignore OS command keys (Windows/Cmd) - prevents combo contamination
                 try:
                     if hasattr(keyboard.Key, 'cmd') and key in (keyboard.Key.cmd, keyboard.Key.cmd_l, keyboard.Key.cmd_r):
@@ -3692,7 +3658,8 @@ Pressione 'Iniciar' quando estiver pronto!"""
                     if current_combo == pause_hotkey:
                         if 'rm_pause' not in self.triggered_quick_keys:
                             self.triggered_quick_keys.add('rm_pause')
-                            self.toggle_runemaker_pause()
+                            # Thread-safe call
+                            self.ui_safe(self.toggle_runemaker_pause)
                 
                 # Find all matching custom hotkeys (where hotkey is subset of currently pressed)
                 matching_hotkeys = []
