@@ -163,6 +163,10 @@ class AudioBook:
         self.triggered_hotkeys = set()
         self.triggered_quick_keys = set()
         
+        # Thread-safe UI dispatcher lock
+        self._ui_lock = threading.Lock()
+        self._ui_running = True
+        
         # Auto-target HSV configuration (default values)
         self.hsv_config = {
             'lower_h1': 0, 'upper_h1': 10,
@@ -186,6 +190,25 @@ class AudioBook:
         
         # Start hotkey listener
         self.start_hotkey_listener()
+    
+    def ui_safe(self, func, *args, **kwargs):
+        """Thread-safe UI update dispatcher - prevents Tkinter deadlocks.
+        Call this from any thread to safely update UI elements."""
+        if not self._ui_running:
+            return
+        try:
+            self.root.after(0, lambda: func(*args, **kwargs))
+        except Exception as e:
+            print(f"[UI_SAFE] Error scheduling UI update: {e}")
+    
+    def ui_configure(self, widget, **kwargs):
+        """Thread-safe widget.configure() - use this from threads instead of direct configure()"""
+        if not self._ui_running:
+            return
+        try:
+            self.root.after(0, lambda: widget.configure(**kwargs))
+        except Exception as e:
+            print(f"[UI_SAFE] Error configuring widget: {e}")
     
     def create_ui(self):
         # Custom style for ttk elements we still need
@@ -820,6 +843,116 @@ class AudioBook:
                     font=ctk.CTkFont(family="Consolas", size=9),
                     text_color=self.colors['text_body']).pack(pady=6)
         
+        # ========== DRAG HOTKEY SECTION ==========
+        drag_header = ctk.CTkFrame(hypergrab_scroll, fg_color=self.colors['border_highlight'],
+                                   corner_radius=6)
+        drag_header.pack(fill=tk.X, pady=(10, 3), padx=2)
+        
+        ctk.CTkLabel(drag_header, text="⚡ DRAG HOTKEY", 
+                    font=ctk.CTkFont(family="Georgia", size=11, weight="bold"),
+                    text_color="#FFFFFF").pack(pady=4)
+        
+        # Drag Hotkey variables
+        self.drag_enabled = tk.BooleanVar(value=False)
+        self.drag_hotkey = tk.StringVar(value="F8")
+        self.drag_start_pos = None
+        self.drag_end_pos = None
+        
+        # Drag toggle card
+        drag_toggle_card = ctk.CTkFrame(hypergrab_scroll, fg_color=self.colors['bg_secondary'],
+                                        corner_radius=8, border_width=1, border_color=self.colors['border'])
+        drag_toggle_card.pack(fill=tk.X, pady=3, padx=2)
+        
+        drag_toggle_inner = ctk.CTkFrame(drag_toggle_card, fg_color="transparent")
+        drag_toggle_inner.pack(fill=tk.X, padx=10, pady=8)
+        
+        self.drag_switch = ctk.CTkSwitch(drag_toggle_inner, text="", width=40, height=20,
+                                         switch_width=36, switch_height=18,
+                                         progress_color=self.colors['switch_on'],
+                                         button_color="#FFFFFF", fg_color=self.colors['switch_off'],
+                                         variable=self.drag_enabled, command=self.toggle_drag_hotkey)
+        self.drag_switch.pack(side=tk.LEFT, padx=4)
+        
+        ctk.CTkLabel(drag_toggle_inner, text="Drag Hotkey", 
+                    font=ctk.CTkFont(family="Georgia", size=12, weight="bold"),
+                    text_color=self.colors['text_header']).pack(side=tk.LEFT, padx=8)
+        
+        self.drag_status_label = ctk.CTkLabel(drag_toggle_inner, text="[OFF]",
+                                              font=ctk.CTkFont(family="Consolas", size=10, weight="bold"),
+                                              text_color=self.colors['status_off'])
+        self.drag_status_label.pack(side=tk.RIGHT, padx=10)
+        
+        # Drag config card
+        drag_config_card = ctk.CTkFrame(hypergrab_scroll, fg_color=self.colors['bg_secondary'],
+                                        corner_radius=8, border_width=1, border_color=self.colors['border'])
+        drag_config_card.pack(fill=tk.X, pady=3, padx=2)
+        
+        drag_config_inner = ctk.CTkFrame(drag_config_card, fg_color="transparent")
+        drag_config_inner.pack(fill=tk.X, padx=10, pady=8)
+        
+        # Row 1: Hotkey
+        drag_row1 = ctk.CTkFrame(drag_config_inner, fg_color="transparent")
+        drag_row1.pack(fill=tk.X, pady=4)
+        
+        ctk.CTkLabel(drag_row1, text="Hotkey:", font=ctk.CTkFont(family="Georgia", size=10, weight="bold"),
+                    text_color=self.colors['text_body'], width=80).pack(side=tk.LEFT)
+        
+        self.drag_hotkey_btn = ctk.CTkButton(drag_row1, text=self.drag_hotkey.get(), width=50, height=24,
+                                             corner_radius=6, fg_color=self.colors['selection'],
+                                             hover_color=self.colors['button_hover'],
+                                             text_color="#FFFFFF", font=ctk.CTkFont(family="Consolas", size=10, weight="bold"),
+                                             command=self.change_drag_hotkey)
+        self.drag_hotkey_btn.pack(side=tk.LEFT, padx=4)
+        
+        # Row 2: Start position (X)
+        drag_row2 = ctk.CTkFrame(drag_config_inner, fg_color="transparent")
+        drag_row2.pack(fill=tk.X, pady=4)
+        
+        ctk.CTkLabel(drag_row2, text="Pos. X:", font=ctk.CTkFont(family="Georgia", size=10, weight="bold"),
+                    text_color=self.colors['text_body'], width=80).pack(side=tk.LEFT)
+        
+        ctk.CTkButton(drag_row2, text="📍 Gravar", width=80, height=24, corner_radius=6,
+                     fg_color=self.colors['button_default'], hover_color=self.colors['button_hover'],
+                     text_color=self.colors['text_body'], font=ctk.CTkFont(size=10),
+                     command=lambda: self.record_drag_position('start')).pack(side=tk.LEFT, padx=4)
+        
+        self.drag_start_status = ctk.CTkLabel(drag_row2, text="[Nao gravado]", width=120,
+                                              font=ctk.CTkFont(family="Consolas", size=9, weight="bold"),
+                                              text_color=self.colors['text_subdued'])
+        self.drag_start_status.pack(side=tk.LEFT, padx=8)
+        
+        ctk.CTkLabel(drag_row2, text="(origem)", font=ctk.CTkFont(family="Consolas", size=8),
+                    text_color=self.colors['text_subdued']).pack(side=tk.LEFT)
+        
+        # Row 3: End position (Y)
+        drag_row3 = ctk.CTkFrame(drag_config_inner, fg_color="transparent")
+        drag_row3.pack(fill=tk.X, pady=4)
+        
+        ctk.CTkLabel(drag_row3, text="Pos. Y:", font=ctk.CTkFont(family="Georgia", size=10, weight="bold"),
+                    text_color=self.colors['text_body'], width=80).pack(side=tk.LEFT)
+        
+        ctk.CTkButton(drag_row3, text="📍 Gravar", width=80, height=24, corner_radius=6,
+                     fg_color=self.colors['button_default'], hover_color=self.colors['button_hover'],
+                     text_color=self.colors['text_body'], font=ctk.CTkFont(size=10),
+                     command=lambda: self.record_drag_position('end')).pack(side=tk.LEFT, padx=4)
+        
+        self.drag_end_status = ctk.CTkLabel(drag_row3, text="[Nao gravado]", width=120,
+                                            font=ctk.CTkFont(family="Consolas", size=9, weight="bold"),
+                                            text_color=self.colors['text_subdued'])
+        self.drag_end_status.pack(side=tk.LEFT, padx=8)
+        
+        ctk.CTkLabel(drag_row3, text="(destino)", font=ctk.CTkFont(family="Consolas", size=8),
+                    text_color=self.colors['text_subdued']).pack(side=tk.LEFT)
+        
+        # Drag info box
+        drag_info_card = ctk.CTkFrame(hypergrab_scroll, fg_color=self.colors['bg_primary'],
+                                      corner_radius=8, border_width=1, border_color=self.colors['border'])
+        drag_info_card.pack(fill=tk.X, pady=3, padx=2)
+        
+        ctk.CTkLabel(drag_info_card, text="Hotkey → Clica em X, arrasta INSTANTANEAMENTE pra Y, solta",
+                    font=ctk.CTkFont(family="Consolas", size=9),
+                    text_color=self.colors['text_body']).pack(pady=6)
+        
         # ========== SETTINGS TAB CONTENT ==========
         settings_scroll = ctk.CTkScrollableFrame(self.tab_settings, fg_color="transparent")
         settings_scroll.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
@@ -920,6 +1053,9 @@ class AudioBook:
         
         # Load hypergrab config
         self.load_hypergrab_config()
+        
+        # Load drag hotkey config
+        self.load_drag_config()
         
         self.refresh_tree()
     
@@ -1186,12 +1322,12 @@ class AudioBook:
         self.runemaker_paused = not self.runemaker_paused
         
         if self.runemaker_paused:
-            self.rm_status_label.configure(text="[PAUSADO]", text_color='#FFA500')
-            self.rm_pause_status.configure(text="[PAUSADO]", text_color='#FFA500')
+            self.ui_configure(self.rm_status_label, text="[PAUSADO]", text_color='#FFA500')
+            self.ui_configure(self.rm_pause_status, text="[PAUSADO]", text_color='#FFA500')
             print("[RUNEMAKER] Pausado!")
         else:
-            self.rm_status_label.configure(text="[RODANDO]", text_color=self.colors['status_on'])
-            self.rm_pause_status.configure(text="", text_color=self.colors['status_off'])
+            self.ui_configure(self.rm_status_label, text="[RODANDO]", text_color=self.colors['status_on'])
+            self.ui_configure(self.rm_pause_status, text="", text_color=self.colors['status_off'])
             print("[RUNEMAKER] Continuando!")
     
     def execute_runemaker_cycle(self):
@@ -1276,7 +1412,7 @@ class AudioBook:
             print("[RUNEMAKER] ERRO: Grave as posicoes da potion primeiro!")
             self.runemaker_enabled.set(False)
             self.runemaker_running = False
-            self.rm_status_label.configure(text="[ERRO: Grave potion]", text_color='#FF6B35')
+            self.ui_configure(self.rm_status_label, text="[ERRO: Grave potion]", text_color='#FF6B35')
             return
         
         while self.runemaker_running:
@@ -1300,11 +1436,8 @@ class AudioBook:
             if should_stop():
                 break
             
-            # Update cycle display
-            try:
-                self.rm_cycle_label.configure(text=f"Ciclo {cycle_count}: {num_potions} pot + {num_casts} cast")
-            except:
-                pass  # UI might be destroyed during shutdown
+            # Update cycle display (thread-safe)
+            self.ui_configure(self.rm_cycle_label, text=f"Ciclo {cycle_count}: {num_potions} pot + {num_casts} cast")
             
             # Execute configured number of potions (mouse clicks)
             for p in range(num_potions):
@@ -1316,10 +1449,7 @@ class AudioBook:
                     time.sleep(0.05)
                 if should_stop():
                     break
-                try:
-                    self.rm_cycle_label.configure(text=f"Ciclo {cycle_count}: Potion {p+1}/{num_potions}")
-                except:
-                    pass
+                self.ui_configure(self.rm_cycle_label, text=f"Ciclo {cycle_count}: Potion {p+1}/{num_potions}")
                 use_potion()
                 if not wait_with_check(delay):
                     break
@@ -1337,10 +1467,7 @@ class AudioBook:
                     time.sleep(0.05)
                 if should_stop():
                     break
-                try:
-                    self.rm_cycle_label.configure(text=f"Ciclo {cycle_count}: Cast {s+1}/{num_casts}")
-                except:
-                    pass
+                self.ui_configure(self.rm_cycle_label, text=f"Ciclo {cycle_count}: Cast {s+1}/{num_casts}")
                 press_key(spell_key)
                 if not wait_with_check(delay):
                     break
@@ -1349,10 +1476,7 @@ class AudioBook:
                 print(f"[RUNEMAKER] Ciclo {cycle_count} completo! ({num_potions} pot + {num_casts} cast)")
         
         print("[RUNEMAKER] Thread finalizada!")
-        try:
-            self.rm_cycle_label.configure(text="")
-        except:
-            pass
+        self.ui_configure(self.rm_cycle_label, text="")
     
     def save_runemaker_config(self):
         """Save runemaker settings to config"""
@@ -1474,21 +1598,22 @@ class AudioBook:
                 if 'hypergrab' not in self.config:
                     self.config['hypergrab'] = {}
                 self.config['hypergrab']['bp_pos'] = self.hypergrab_bp_pos
-                self.save_config()
+                self.ui_safe(self.save_config)
                 
-                # Update UI
-                self.hg_bp_status.configure(text=f"[OK] ({x},{y})", text_color=self.colors['status_on'])
-                status.config(text=f"Gravado: ({x},{y})")
+                # Update UI (thread-safe)
+                self.ui_configure(self.hg_bp_status, text=f"[OK] ({x},{y})", text_color=self.colors['status_on'])
+                self.ui_safe(lambda: status.config(text=f"Gravado: ({x},{y})"))
                 
                 listener.stop()
-                dialog.after(500, dialog.destroy)
+                self.ui_safe(lambda: dialog.after(500, dialog.destroy))
                 return False
         
         listener = mouse.Listener(on_click=on_click)
         listener.start()
     
     def execute_hypergrab(self):
-        """Execute instant drag from current mouse position to backpack slot"""
+        """Execute instant drag from current mouse position to backpack slot
+        and return mouse to original position"""
         if not self.hypergrab_enabled.get():
             return
         
@@ -1501,8 +1626,8 @@ class AudioBook:
             return
         
         try:
-            # Get current mouse position (where item is)
-            current_x, current_y = pyautogui.position()
+            # SAVE original mouse position BEFORE doing anything
+            original_x, original_y = pyautogui.position()
             target_x, target_y = bp_pos['x'], bp_pos['y']
             
             # INSTANT DRAG: left click down -> move instant -> left click up
@@ -1510,7 +1635,10 @@ class AudioBook:
             pyautogui.moveTo(target_x, target_y, duration=0)  # INSTANT - 0ms
             pyautogui.mouseUp(button='left')
             
-            print(f"[HYPERGRAB] Item arrastado de ({current_x},{current_y}) para BP ({target_x},{target_y})")
+            # RETURN MOUSE to original position (instant)
+            pyautogui.moveTo(original_x, original_y, duration=0)
+            
+            print(f"[HYPERGRAB] Item arrastado de ({original_x},{original_y}) para BP ({target_x},{target_y}) - mouse retornou")
             
         except Exception as e:
             print(f"[HYPERGRAB] Erro: {e}")
@@ -1553,6 +1681,174 @@ class AudioBook:
             self.hypergrab_enabled.set(False)
         if hasattr(self, 'hg_enabled_btn'):
             self.update_checkbox_icon(self.hg_enabled_btn, self.hypergrab_enabled)
+    
+    # ========== DRAG HOTKEY METHODS ==========
+    
+    def toggle_drag_hotkey(self):
+        """Toggle Drag Hotkey on/off"""
+        if self.drag_enabled.get():
+            self.drag_status_label.configure(text="[ATIVO]", text_color=self.colors['status_on'])
+        else:
+            self.drag_status_label.configure(text="[OFF]", text_color=self.colors['status_off'])
+        
+        self.save_drag_config()
+    
+    def change_drag_hotkey(self):
+        """Change the Drag Hotkey"""
+        dialog = self.create_ember_dialog("Drag Hotkey", 400, 200)
+        
+        tk.Label(dialog, text="Drag Hotkey", font=('Georgia', 14, 'bold'),
+                bg=self.colors['bg_primary'], fg=self.colors['text_header']).pack(pady=15)
+        
+        tk.Label(dialog, text="Pressione qualquer tecla...", font=('Arial', 11),
+                bg=self.colors['bg_primary'], fg=self.colors['text_body']).pack(pady=10)
+        
+        key_label = tk.Label(dialog, text=self.drag_hotkey.get(), font=('Consolas', 16, 'bold'),
+                bg=self.colors['bg_inset'], fg=self.colors['status_on'], padx=20, pady=10)
+        key_label.pack(pady=10)
+        
+        def on_key(event):
+            key_name = event.keysym
+            self.drag_hotkey.set(key_name)
+            key_label.config(text=key_name)
+            self.drag_hotkey_btn.configure(text=key_name)
+            self.save_drag_config()
+            dialog.after(300, dialog.destroy)
+        
+        dialog.bind('<Key>', on_key)
+        dialog.focus_force()
+    
+    def record_drag_position(self, pos_type):
+        """Record start (X) or end (Y) position for Drag Hotkey"""
+        title = "Gravar Pos. X (Origem)" if pos_type == 'start' else "Gravar Pos. Y (Destino)"
+        dialog = self.create_ember_dialog(title, 450, 200)
+        
+        tk.Label(dialog, text=title, font=('Georgia', 12, 'bold'),
+                bg=self.colors['bg_primary'], fg=self.colors['text_header']).pack(pady=10)
+        
+        instruction = "Clique na posicao de ORIGEM (onde vai clicar)" if pos_type == 'start' else "Clique na posicao de DESTINO (onde vai arrastar)"
+        tk.Label(dialog, text=instruction, font=('Arial', 10),
+                bg=self.colors['bg_primary'], fg=self.colors['text_body']).pack(pady=5)
+        
+        status = tk.Label(dialog, text="Aguardando clique...", font=('Consolas', 11, 'bold'),
+                bg=self.colors['bg_primary'], fg=self.colors['status_on'])
+        status.pack(pady=10)
+        
+        def on_click(x, y, button, pressed):
+            if pressed and button == mouse.Button.left:
+                pos = {'x': x, 'y': y}
+                
+                # Save to config
+                if 'drag_hotkey' not in self.config:
+                    self.config['drag_hotkey'] = {}
+                
+                # Thread-safe UI updates via root.after
+                if pos_type == 'start':
+                    self.drag_start_pos = pos
+                    self.config['drag_hotkey']['start_pos'] = pos
+                    self.ui_configure(self.drag_start_status, text=f"[OK] ({x},{y})", text_color=self.colors['status_on'])
+                else:
+                    self.drag_end_pos = pos
+                    self.config['drag_hotkey']['end_pos'] = pos
+                    self.ui_configure(self.drag_end_status, text=f"[OK] ({x},{y})", text_color=self.colors['status_on'])
+                
+                self.ui_safe(self.save_config)
+                self.ui_safe(lambda: status.config(text=f"Gravado: ({x},{y})"))
+                
+                listener.stop()
+                self.ui_safe(lambda: dialog.after(500, dialog.destroy))
+                return False
+        
+        listener = mouse.Listener(on_click=on_click)
+        listener.start()
+    
+    def execute_drag_hotkey(self):
+        """Execute instant drag from position X to position Y and return mouse to original"""
+        if not self.drag_enabled.get():
+            return
+        
+        # Get positions from config
+        drag_config = self.config.get('drag_hotkey', {})
+        start_pos = drag_config.get('start_pos')
+        end_pos = drag_config.get('end_pos')
+        
+        if not start_pos:
+            print("[DRAG_HOTKEY] ERRO: Grave a posicao X (origem) primeiro!")
+            return
+        if not end_pos:
+            print("[DRAG_HOTKEY] ERRO: Grave a posicao Y (destino) primeiro!")
+            return
+        
+        try:
+            # SAVE original mouse position BEFORE doing anything
+            original_x, original_y = pyautogui.position()
+            
+            start_x, start_y = start_pos['x'], start_pos['y']
+            end_x, end_y = end_pos['x'], end_pos['y']
+            
+            # INSTANT: Move to start -> click down -> move to end -> click up
+            pyautogui.moveTo(start_x, start_y, duration=0)  # INSTANT move to start
+            pyautogui.mouseDown(button='left')
+            pyautogui.moveTo(end_x, end_y, duration=0)  # INSTANT drag to end
+            pyautogui.mouseUp(button='left')
+            
+            # RETURN MOUSE to original position (instant)
+            pyautogui.moveTo(original_x, original_y, duration=0)
+            
+            print(f"[DRAG_HOTKEY] Arrastado de ({start_x},{start_y}) para ({end_x},{end_y}) - mouse retornou para ({original_x},{original_y})")
+            
+        except Exception as e:
+            print(f"[DRAG_HOTKEY] Erro: {e}")
+    
+    def save_drag_config(self):
+        """Save Drag Hotkey settings to config"""
+        if 'drag_hotkey' not in self.config:
+            self.config['drag_hotkey'] = {}
+        
+        # Preserve existing positions
+        existing_start = self.config.get('drag_hotkey', {}).get('start_pos')
+        existing_end = self.config.get('drag_hotkey', {}).get('end_pos')
+        
+        self.config['drag_hotkey'] = {
+            'enabled': self.drag_enabled.get(),
+            'hotkey': self.drag_hotkey.get(),
+            'start_pos': existing_start,
+            'end_pos': existing_end
+        }
+        
+        self.save_config()
+    
+    def load_drag_config(self):
+        """Load Drag Hotkey settings from config"""
+        drag = self.config.get('drag_hotkey', {})
+        
+        if hasattr(self, 'drag_hotkey'):
+            self.drag_hotkey.set(drag.get('hotkey', 'F8'))
+            if hasattr(self, 'drag_hotkey_btn'):
+                self.drag_hotkey_btn.configure(text=drag.get('hotkey', 'F8'))
+        
+        # Update position status labels
+        if hasattr(self, 'drag_start_status'):
+            start_pos = drag.get('start_pos')
+            if start_pos:
+                self.drag_start_status.configure(text=f"[OK] ({start_pos['x']},{start_pos['y']})", 
+                                                 text_color=self.colors['status_on'])
+                self.drag_start_pos = start_pos
+            else:
+                self.drag_start_status.configure(text="[Nao gravado]", text_color=self.colors['text_subdued'])
+        
+        if hasattr(self, 'drag_end_status'):
+            end_pos = drag.get('end_pos')
+            if end_pos:
+                self.drag_end_status.configure(text=f"[OK] ({end_pos['x']},{end_pos['y']})", 
+                                               text_color=self.colors['status_on'])
+                self.drag_end_pos = end_pos
+            else:
+                self.drag_end_status.configure(text="[Nao gravado]", text_color=self.colors['text_subdued'])
+        
+        # Don't auto-enable on load
+        if hasattr(self, 'drag_enabled'):
+            self.drag_enabled.set(False)
     
     def create_ember_dialog(self, title, width=400, height=250):
         """Create a dialog with ember theme colors and proper focus"""
@@ -1938,13 +2234,14 @@ class AudioBook:
             self.status_label.configure(text="OFF", text_color=self.colors['status_off'])
     
     def pause_all(self):
-        """Global pause triggered by Alt+F12 - forces ALL automations to stop IMMEDIATELY"""
+        """Global pause triggered by Alt+F12 - forces ALL automations to stop IMMEDIATELY
+        NOTE: This runs in a hotkey thread, so all UI updates MUST use ui_safe/ui_configure"""
         print("[ALT+F12] PAUSA GLOBAL ATIVADA!")
         
-        # 1. STOP GLOBAL TOGGLE
+        # 1. STOP GLOBAL TOGGLE (thread-safe)
         self.active = False
-        self.global_toggle.deselect()
-        self.status_label.configure(text="OFF", text_color=self.colors['status_off'])
+        self.ui_safe(self.global_toggle.deselect)
+        self.ui_configure(self.status_label, text="OFF", text_color=self.colors['status_off'])
         
         # 2. FORCE STOP RUNEMAKER (critical - runs in separate thread!)
         if hasattr(self, 'runemaker_running') and self.runemaker_running:
@@ -1953,45 +2250,55 @@ class AudioBook:
             if hasattr(self, 'runemaker_enabled'):
                 self.runemaker_enabled.set(False)
             if hasattr(self, 'rm_enabled_btn'):
-                self.update_checkbox_icon(self.rm_enabled_btn, self.runemaker_enabled)
+                self.ui_safe(self.update_checkbox_icon, self.rm_enabled_btn, self.runemaker_enabled)
             if hasattr(self, 'rm_status_label'):
-                self.rm_status_label.configure(text="[PARADO]", text_color=self.colors['status_off'])
+                self.ui_configure(self.rm_status_label, text="[PARADO]", text_color=self.colors['status_off'])
             if hasattr(self, 'rm_cycle_label'):
-                self.rm_cycle_label.configure(text="")
+                self.ui_configure(self.rm_cycle_label, text="")
             print("[ALT+F12] Runemaker FORÇADO a parar!")
         
         # 3. STOP ALL BEST SELLERS (Auto SD, EXPLO, UH, Mana)
         if hasattr(self, 'auto_sd_enabled'):
             self.auto_sd_enabled.set(False)
             if hasattr(self, 'sd_enabled_btn'):
-                self.update_checkbox_icon(self.sd_enabled_btn, self.auto_sd_enabled)
+                self.ui_safe(self.update_checkbox_icon, self.sd_enabled_btn, self.auto_sd_enabled)
         if hasattr(self, 'auto_explo_enabled'):
             self.auto_explo_enabled.set(False)
             if hasattr(self, 'explo_enabled_btn'):
-                self.update_checkbox_icon(self.explo_enabled_btn, self.auto_explo_enabled)
+                self.ui_safe(self.update_checkbox_icon, self.explo_enabled_btn, self.auto_explo_enabled)
         if hasattr(self, 'auto_uh_enabled'):
             self.auto_uh_enabled.set(False)
             if hasattr(self, 'uh_enabled_btn'):
-                self.update_checkbox_icon(self.uh_enabled_btn, self.auto_uh_enabled)
+                self.ui_safe(self.update_checkbox_icon, self.uh_enabled_btn, self.auto_uh_enabled)
         if hasattr(self, 'auto_mana_enabled'):
             self.auto_mana_enabled.set(False)
             if hasattr(self, 'mana_enabled_btn'):
-                self.update_checkbox_icon(self.mana_enabled_btn, self.auto_mana_enabled)
+                self.ui_safe(self.update_checkbox_icon, self.mana_enabled_btn, self.auto_mana_enabled)
         
         # 4. STOP HYPER GRAB
         if hasattr(self, 'hypergrab_enabled'):
             self.hypergrab_enabled.set(False)
             if hasattr(self, 'hg_enabled_btn'):
-                self.update_checkbox_icon(self.hg_enabled_btn, self.hypergrab_enabled)
+                self.ui_safe(self.update_checkbox_icon, self.hg_enabled_btn, self.hypergrab_enabled)
             if hasattr(self, 'hg_status_label'):
-                self.hg_status_label.configure(text="[OFF]", text_color=self.colors['status_off'])
+                self.ui_configure(self.hg_status_label, text="[OFF]", text_color=self.colors['status_off'])
         
-        # 5. Save config to persist the OFF state
-        self.save_config()
+        # 5. STOP DRAG HOTKEY
+        if hasattr(self, 'drag_enabled'):
+            self.drag_enabled.set(False)
+            if hasattr(self, 'drag_status_label'):
+                self.ui_configure(self.drag_status_label, text="[OFF]", text_color=self.colors['status_off'])
+        
+        # 6. CLEAR ALL TRIGGERED FLAGS to reset hotkey states
+        self.triggered_quick_keys.clear()
+        self.triggered_hotkeys.clear()
+        
+        # 7. Save config to persist the OFF state (thread-safe via after)
+        self.ui_safe(self.save_config)
         
         print("[ALT+F12] TODAS as automações foram PARADAS!")
-        # Show visual feedback (non-blocking)
-        self.root.after(100, lambda: messagebox.showinfo("PAUSA GLOBAL", "Alt+F12: Todas as automações foram PARADAS!"))
+        # Show visual feedback (non-blocking, thread-safe)
+        self.ui_safe(lambda: messagebox.showinfo("PAUSA GLOBAL", "Alt+F12: Todas as automações foram PARADAS!"))
     
     def refresh_tree(self):
         # Clear tree
@@ -3369,6 +3676,16 @@ Pressione 'Iniciar' quando estiver pronto!"""
                             # Execute Hyper Grab (instant drag to BP)
                             threading.Thread(target=self.execute_hypergrab, daemon=True).start()
                 
+                # Check Drag Hotkey
+                drag_config = self.config.get('drag_hotkey', {})
+                if drag_config.get('enabled', False):
+                    drag_hk = drag_config.get('hotkey', 'f8').lower()
+                    if current_combo == drag_hk:
+                        if 'drag_hotkey' not in self.triggered_quick_keys:
+                            self.triggered_quick_keys.add('drag_hotkey')
+                            # Execute Drag Hotkey (instant drag X to Y)
+                            threading.Thread(target=self.execute_drag_hotkey, daemon=True).start()
+                
                 # Check Runemaker Pause Hotkey
                 if hasattr(self, 'rm_pause_hotkey') and self.runemaker_running:
                     pause_hotkey = self.rm_pause_hotkey.get().lower()
@@ -3452,6 +3769,12 @@ Pressione 'Iniciar' quando estiver pronto!"""
                 hg_hotkey = hg_config.get('hotkey', 'f5').lower()
                 if hg_hotkey != current_combo:
                     self.triggered_quick_keys.discard('hypergrab')
+                
+                # Reset Drag Hotkey
+                drag_config = self.config.get('drag_hotkey', {})
+                drag_hk = drag_config.get('hotkey', 'f8').lower()
+                if drag_hk != current_combo:
+                    self.triggered_quick_keys.discard('drag_hotkey')
                 
                 # Reset triggered state for custom hotkeys that are no longer fully pressed
                 for idx, hk in enumerate(self.hotkeys):
